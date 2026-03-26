@@ -42,10 +42,6 @@ entry("getpid");
 entry("sbrk");
 entry("pause");
 entry("uptime");
-<<<<<<< HEAD
-=======
-entry("ps_listinfo");
 entry("mutex");
 entry("mutex_lock");
 entry("mutex_unlock");
->>>>>>> ef9750b (hw3)

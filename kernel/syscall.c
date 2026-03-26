@@ -133,13 +133,9 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-<<<<<<< HEAD
-=======
-[SYS_ps_listinfo] sys_ps_listinfo,
 [SYS_mutex] sys_mutex,
 [SYS_mutex_lock]   sys_mutex_lock,
 [SYS_mutex_unlock] sys_mutex_unlock,
->>>>>>> ef9750b (hw3)
 };
 
 void

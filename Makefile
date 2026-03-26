@@ -146,13 +146,8 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-<<<<<<< HEAD
-=======
-	$U/_ps\
-	$U/_pstest\
 	$U/_mutex_demo\
 	$U/_mutex_test
->>>>>>> ef9750b (hw3)
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

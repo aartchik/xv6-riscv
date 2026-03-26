@@ -503,3 +503,61 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_mutex(void)
+{
+  struct file* f;
+  int fd;
+
+  if (mutexalloc(&f) < 0)
+    return -1;
+
+  fd = fdalloc(f);
+  if (fd < 0) {
+    fileclose(f);
+    return -1;
+  }
+
+  return fd;
+}
+
+uint64
+sys_mutex_lock(void)
+{
+  int fd;
+  struct file* f;
+
+  if (argfd(0, &fd, &f) < 0)
+    return -1;
+
+  if (f->type != FD_MUTEX || f->mutex == 0)
+    return -1;
+
+  if (holdingsleep(f->mutex))
+    return -1;
+
+  acquiresleep(f->mutex);
+  return 0;
+}
+
+
+uint64
+sys_mutex_unlock(void)
+{
+  int fd;
+  struct file* f;
+
+  if (argfd(0, &fd, &f) < 0)
+    return -1;
+
+  if (f->type != FD_MUTEX || f->mutex == 0)
+    return -1;
+
+  // unlock только владельцу
+  if (!holdingsleep(f->mutex))
+    return -1;
+
+  releasesleep(f->mutex);
+  return 0;
+}

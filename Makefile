@@ -147,6 +147,8 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_ps\
 	$U/_pstest\
+	$U/_procwaitkill\
+	$U/_argv2wc\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

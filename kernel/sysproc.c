@@ -7,6 +7,41 @@
 #include "proc.h"
 #include "vm.h"
 
+
+uint64
+sys_vmprint(void)
+{
+  struct proc* p = myproc();
+  vmprint(p->pagetable);
+  return 0;
+}
+
+uint64
+sys_pgclear(void)
+{
+  uint64 addr, len;
+  int flags;
+
+  argaddr(0, &addr);
+  argaddr(1, &len);
+  argint(2, &flags);
+
+  return pageflags_clear(myproc()->pagetable, addr, len, flags);
+}
+
+uint64
+sys_pgcheck(void)
+{
+  uint64 addr, len;
+  int flags;
+
+  argaddr(0, &addr);
+  argaddr(1, &len);
+  argint(2, &flags);
+
+  return pageflags_test(myproc()->pagetable, addr, len, flags);
+}
+
 uint64
 sys_exit(void)
 {

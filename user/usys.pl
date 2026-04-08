@@ -42,3 +42,6 @@ entry("getpid");
 entry("sbrk");
 entry("pause");
 entry("uptime");
+entry("vmprint");
+entry("pgclear");
+entry("pgcheck");

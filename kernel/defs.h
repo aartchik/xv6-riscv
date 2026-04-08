@@ -9,6 +9,14 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+
+void vmprint(pagetable_t);
+int pageflags_clear(pagetable_t pagetable, uint64 addr, uint64 len, int flags);
+int pageflags_test(pagetable_t pagetable, uint64 addr, uint64 len, int flags);
+uint64 sys_vmprint(void);
+uint64 sys_pgclear(void);
+uint64 sys_pgcheck(void);
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);

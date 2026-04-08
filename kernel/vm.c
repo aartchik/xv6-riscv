@@ -17,6 +17,135 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+static void
+print_pte_flags(pte_t pte)
+{
+  printf("%c", (pte & PTE_R) ? 'R' : '_');
+  printf("%c", (pte & PTE_W) ? 'W' : '_');
+  printf("%c", (pte & PTE_X) ? 'X' : '_');
+  printf("%c", (pte & PTE_U) ? 'U' : '_');
+  printf("%c", (pte & PTE_G) ? 'G' : '_');
+  printf("%c", (pte & PTE_A) ? 'A' : '_');
+  printf("%c", (pte & PTE_D) ? 'D' : '_');
+}
+
+static void
+print_indent(int level)
+{
+  if (level == 1)
+    printf("......... ");
+  else if (level == 2)
+    printf("................... ");
+}
+
+static void
+vmprint_rec(pagetable_t pagetable, int level)
+{
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if ((pte & PTE_V) == 0)
+      continue;
+
+    print_indent(level);
+    printf("0x%x -> 0x%lx ", i, PTE2PA(pte));
+    print_pte_flags(pte);
+    printf("\n");
+
+    if ((pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+      pagetable_t child = (pagetable_t)PTE2PA(pte);
+      vmprint_rec(child, level + 1);
+    }
+  }
+}
+
+
+void
+vmprint(pagetable_t pagetable)
+{
+  printf("PAGETABLE %p\n", pagetable);
+  vmprint_rec(pagetable, 0);
+}
+
+static int
+check_ad_flags(int flags)
+{
+  if (flags == 0)
+    return -1;
+  if (flags & ~(PTE_A | PTE_D))
+    return -1;
+  return 0;
+}
+
+int
+pageflags_test(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
+{
+  uint64 start, end, lastva;
+  pte_t* pte;
+
+  if (check_ad_flags(flags) < 0)
+    return -1;
+  if (len == 0)
+    return -1;
+  if (addr + len < addr)
+    return -1;
+
+  lastva = addr + len - 1;
+  if (addr >= MAXVA || lastva >= MAXVA)
+    return -1;
+
+  start = PGROUNDDOWN(addr);
+  end = PGROUNDDOWN(lastva);
+
+  for (uint64 va = start; ; va += PGSIZE) {
+    pte = walk(pagetable, va, 0);
+    if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
+      return -1;
+
+    if (*pte & flags)
+      return 1;
+
+    if (va == end)
+      break;
+  }
+
+  return 0;
+}
+
+int
+pageflags_clear(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
+{
+  uint64 start, end, lastva;
+  pte_t* pte;
+
+  if (check_ad_flags(flags) < 0)
+    return -1;
+  if (len == 0)
+    return -1;
+  if (addr + len < addr)
+    return -1;
+
+  lastva = addr + len - 1;
+  if (addr >= MAXVA || lastva >= MAXVA)
+    return -1;
+
+  start = PGROUNDDOWN(addr);
+  end = PGROUNDDOWN(lastva);
+
+  for (uint64 va = start; ; va += PGSIZE) {
+    pte = walk(pagetable, va, 0);
+    if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
+      return -1;
+
+    *pte &= ~flags;
+
+    if (va == end)
+      break;
+  }
+
+  sfence_vma();
+  return 0;
+}
+
 // Make a direct-map page table for the kernel.
 pagetable_t
 kvmmake(void)

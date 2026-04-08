@@ -2,6 +2,10 @@
 
 struct stat;
 
+int vmprint(void);
+int pgclear(void* addr, uint64 len, int flags);
+int pgcheck(void* addr, uint64 len, int flags);
+
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));

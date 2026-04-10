@@ -23,21 +23,30 @@ enum {
   DEV_NULLSTAT = 3,
 };
 
-static struct spinlock pseudodev_lock;
+static struct spinlock nullstat_lock;
+static struct spinlock rand_lock;
+
 static uint64 nullstat_count = 0;
 static uint64 rand_seed = 1;
 
 static uint64
 lcg_next(void)
 {
+  uint64 x;
+
+  acquire(&rand_lock);
   rand_seed = rand_seed * 6364136223846793005ULL + 1;
-  return rand_seed;
+  x = rand_seed;
+  release(&rand_lock);
+
+  return x;
 }
 
 void
 pseudodevinit(void)
 {
-  initlock(&pseudodev_lock, "pseudodev");
+  initlock(&nullstat_lock, "nullstat");
+  initlock(&rand_lock, "urandom");
 }
 
 int
@@ -51,13 +60,22 @@ pseudodevread(short minor, int user_dst, uint64 dst, int n)
   case DEV_NULL:
     return 0;
 
-  case DEV_ZERO:
-    for (i = 0; i < n; i++) {
-      ch = 0;
-      if (either_copyout(user_dst, dst + i, &ch, 1) < 0)
+  case DEV_ZERO: {
+    char zeros[64];
+    int done = 0;
+    int m;
+
+    memset(zeros, 0, sizeof(zeros));
+    while (done < n) {
+      m = n - done;
+      if (m > sizeof(zeros))
+        m = sizeof(zeros);
+      if (either_copyout(user_dst, dst + done, zeros, m) < 0)
         return -1;
+      done += m;
     }
     return n;
+  }
 
   case DEV_URANDOM:
     for (i = 0; i < n; i++) {
@@ -72,9 +90,11 @@ pseudodevread(short minor, int user_dst, uint64 dst, int n)
   case DEV_NULLSTAT:
     if (n != sizeof(uint64))
       return -1;
-    acquire(&pseudodev_lock);
+
+    acquire(&nullstat_lock);
     value = nullstat_count;
-    release(&pseudodev_lock);
+    release(&nullstat_lock);
+
     if (either_copyout(user_dst, dst, (char*)&value, sizeof(uint64)) < 0)
       return -1;
     return sizeof(uint64);
@@ -101,13 +121,17 @@ pseudodevwrite(short minor, int user_src, uint64 src, int n)
       return -1;
     if (either_copyin((char*)&value, user_src, src, sizeof(uint64)) < 0)
       return -1;
+
+    acquire(&rand_lock);
     rand_seed = value;
+    release(&rand_lock);
+
     return sizeof(uint64);
 
   case DEV_NULLSTAT:
-    acquire(&pseudodev_lock);
+    acquire(&nullstat_lock);
     nullstat_count += n;
-    release(&pseudodev_lock);
+    release(&nullstat_lock);
     return n;
 
   default:

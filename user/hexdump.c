@@ -2,11 +2,13 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
+#include "user/user.h"
 
 static int
 digit2hex(int x)
 {
-  if (x < 10) return '0' + x;
+  if (x < 10)
+    return '0' + x;
   return 'A' + (x - 10);
 }
 
@@ -43,12 +45,18 @@ main(int argc, char* argv[])
     exit(1);
   }
 
-  i = read(fd, buf, nbytes);
-  if (i < 0) {
-    fprintf(2, "Read error\n");
-    free(buf);
-    close(fd);
-    exit(1);
+  i = 0;
+  while (i < nbytes) {
+    int r = read(fd, buf + i, nbytes - i);
+    if (r < 0) {
+      fprintf(2, "Read error\n");
+      free(buf);
+      close(fd);
+      exit(1);
+    }
+    if (r == 0)
+      break;
+    i += r;
   }
 
   for (int j = 0; j < i; j++) {

@@ -16,6 +16,10 @@ void pseudodevinit(void);
 int pseudodevread(short minor, int user_dst, uint64 dst, int n);
 int pseudodevwrite(short minor, int user_src, uint64 src, int n);
 
+void rtcinit(void);
+uint64 rtctime(void);
+uint64 sys_rtctime(void);
+
 void pseudodevregister(void);
 // bio.c
 void            binit(void);

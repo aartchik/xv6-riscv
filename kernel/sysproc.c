@@ -17,6 +17,12 @@ sys_exit(void)
 }
 
 uint64
+sys_rtctime(void)
+{
+  return rtctime();
+}
+
+uint64
 sys_getpid(void)
 {
   return myproc()->pid;

@@ -2,6 +2,8 @@
 
 struct stat;
 
+uint64 rtctime(void);
+
 // system calls
 int fork(void);
 int exit(int) __attribute__((noreturn));

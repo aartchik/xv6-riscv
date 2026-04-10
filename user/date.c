@@ -15,11 +15,23 @@ print2(int x)
   printf("%d", x);
 }
 
+static void
+print9(uint64 x)
+{
+  uint64 div = 100000000;
+  while (div > 0) {
+    printf("%d", (int)(x / div));
+    x %= div;
+    div /= 10;
+  }
+}
+
 int
 main(void)
 {
-  uint64 ns = rtctime();     
-  uint64 s = ns / 1000000000; 
+  uint64 ns = rtctime();
+  uint64 s = ns / 1000000000ULL;
+  uint64 frac = ns % 1000000000ULL;
 
   int sec = s % 60;
   s /= 60;
@@ -32,7 +44,7 @@ main(void)
 
   while (1) {
     int days = is_leap(year) ? 366 : 365;
-    if (s >= days) {
+    if (s >= (uint64)days) {
       s -= days;
       year++;
     }
@@ -47,8 +59,7 @@ main(void)
     mdays[1] = 29;
 
   int month = 0;
-
-  while (s >= mdays[month]) {
+  while (s >= (uint64)mdays[month]) {
     s -= mdays[month];
     month++;
   }
@@ -65,6 +76,8 @@ main(void)
   print2(min);
   printf(":");
   print2(sec);
+  printf(".");
+  print9(frac);
   printf("\n");
 
   exit(0);

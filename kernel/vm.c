@@ -76,14 +76,11 @@ check_ad_flags(int flags)
   return 0;
 }
 
-int
-pageflags_test(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
+static int
+page_range(uint64 addr, uint64 len, uint64 *start, uint64 *end)
 {
-  uint64 start, end, lastva;
-  pte_t* pte;
+  uint64 lastva;
 
-  if (check_ad_flags(flags) < 0)
-    return -1;
   if (len == 0)
     return -1;
   if (addr + len < addr)
@@ -93,53 +90,65 @@ pageflags_test(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
   if (addr >= MAXVA || lastva >= MAXVA)
     return -1;
 
-  start = PGROUNDDOWN(addr);
-  end = PGROUNDDOWN(lastva);
+  *start = PGROUNDDOWN(addr);
+  *end = PGROUNDDOWN(lastva);
+  return 0;
+}
 
-  for (uint64 va = start; ; va += PGSIZE) {
+static int
+user_pages_valid(pagetable_t pagetable, uint64 start, uint64 end)
+{
+  pte_t* pte;
+
+  for (uint64 va = start; va <= end; va += PGSIZE) {
     pte = walk(pagetable, va, 0);
     if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
       return -1;
-
-    if (*pte & flags)
-      return 1;
-
-    if (va == end)
-      break;
   }
 
   return 0;
 }
 
 int
+pageflags_test(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
+{
+  uint64 start, end;
+  pte_t* pte;
+  int found;
+
+  if (check_ad_flags(flags) < 0)
+    return -1;
+  if (page_range(addr, len, &start, &end) < 0)
+    return -1;
+  if (user_pages_valid(pagetable, start, end) < 0)
+    return -1;
+
+  found = 0;
+  for (uint64 va = start; va <= end; va += PGSIZE) {
+    pte = walk(pagetable, va, 0);
+    if (*pte & flags)
+      found = 1;
+  }
+
+  return found;
+}
+
+int
 pageflags_clear(pagetable_t pagetable, uint64 addr, uint64 len, int flags)
 {
-  uint64 start, end, lastva;
+  uint64 start, end;
   pte_t* pte;
 
   if (check_ad_flags(flags) < 0)
     return -1;
-  if (len == 0)
+  if (page_range(addr, len, &start, &end) < 0)
     return -1;
-  if (addr + len < addr)
-    return -1;
-
-  lastva = addr + len - 1;
-  if (addr >= MAXVA || lastva >= MAXVA)
+  if (user_pages_valid(pagetable, start, end) < 0)
     return -1;
 
-  start = PGROUNDDOWN(addr);
-  end = PGROUNDDOWN(lastva);
-
-  for (uint64 va = start; ; va += PGSIZE) {
+  for (uint64 va = start; va <= end; va += PGSIZE) {
     pte = walk(pagetable, va, 0);
-    if (pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
-      return -1;
-
     *pte &= ~flags;
-
-    if (va == end)
-      break;
   }
 
   sfence_vma();

@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "dmesg.h"
 
 struct cpu cpus[NCPU];
 
@@ -260,6 +261,7 @@ int
 kfork(void)
 {
   int i, pid;
+  char child_name[16];
   struct proc *np;
   struct proc *p = myproc();
 
@@ -289,6 +291,7 @@ kfork(void)
   np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
+  safestrcpy(child_name, np->name, sizeof(child_name));
 
   pid = np->pid;
 
@@ -301,6 +304,10 @@ kfork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
+
+  if(logenabled(LOG_CLASS_PROC))
+    pr_msg("proc-create parent_pid=%d parent_name=%s child_pid=%d child_name=%s",
+           p->pid, p->name, pid, child_name);
 
   return pid;
 }
@@ -327,6 +334,8 @@ void
 kexit(int status)
 {
   struct proc *p = myproc();
+  int parent_pid;
+  char parent_name[16];
 
   if(p == initproc)
     panic("init exiting");
@@ -347,6 +356,14 @@ kexit(int status)
 
   acquire(&wait_lock);
 
+  if(p->parent){
+    parent_pid = p->parent->pid;
+    safestrcpy(parent_name, p->parent->name, sizeof(parent_name));
+  } else {
+    parent_pid = -1;
+    parent_name[0] = 0;
+  }
+
   // Give any children to init.
   reparent(p);
 
@@ -359,6 +376,10 @@ kexit(int status)
   p->state = ZOMBIE;
 
   release(&wait_lock);
+
+  if(logenabled(LOG_CLASS_PROC))
+    pr_msg("proc-exit pid=%d name=%s parent_pid=%d parent_name=%s status=%d",
+           p->pid, p->name, parent_pid, parent_name, status);
 
   // Jump into the scheduler, never to return.
   sched();

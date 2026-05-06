@@ -1,0 +1,14 @@
+#include "param.h"
+
+#define DMESG_BUF_SIZE (DMESG_PAGES * 4096)
+
+#define LOG_CLASS_SYSCALL 1
+#define LOG_CLASS_IRQ     2
+#define LOG_CLASS_PROC    4
+#define LOG_CLASS_EXEC    8
+#define LOG_CLASS_ALL (LOG_CLASS_SYSCALL | LOG_CLASS_IRQ | LOG_CLASS_PROC | LOG_CLASS_EXEC)
+
+#define LOGCTL_GET 0
+#define LOGCTL_SET 1
+#define LOGCTL_ON  2
+#define LOGCTL_OFF 3

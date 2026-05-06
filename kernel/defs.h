@@ -22,6 +22,13 @@ void            consoleinit(void);
 void            consoleintr(int);
 void            consputc(int);
 
+// dmesg.c
+int             dmesg(uint64, int);
+void            dmesginit(void);
+int             logctl(int, int);
+int             logenabled(int);
+void            pr_msg(const char*, ...) __attribute__ ((format (printf, 1, 2)));
+
 // exec.c
 int             kexec(char*, char**);
 

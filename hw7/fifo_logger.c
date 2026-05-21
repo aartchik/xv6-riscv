@@ -267,11 +267,10 @@ redirect_stdio_to_log(void)
     fatal("dup2(stdout)");
   if (dup2(fileno(new_log), STDERR_FILENO) < 0)
     fatal("dup2(stderr)");
+  fclose(new_log);
 
   close_log_stream();
-  log_stream = fdopen(STDOUT_FILENO, "a");
-  if (log_stream == NULL)
-    fatal("fdopen(stdout)");
+  log_stream = stdout;
   if (setvbuf(log_stream, NULL, _IOLBF, 0) != 0)
     fatal("setvbuf");
 }
@@ -319,6 +318,18 @@ become_daemon(void)
 }
 
 static void
+handle_signal_actions(void)
+{
+  if (terminate_now)
+    return;
+
+  handle_alarm();
+  handle_stats_request();
+  if (daemonize_requested && !terminate_requested)
+    become_daemon();
+}
+
+static void
 cleanup(void)
 {
   if (created_fifo)
@@ -340,6 +351,13 @@ open_fifo_for_read(void)
   int fd;
 
   while (1) {
+    if (terminate_requested)
+      return -1;
+
+    handle_signal_actions();
+    if (terminate_requested)
+      return -1;
+
     fd = open(fifo_path, O_RDONLY);
     if (fd >= 0)
       return fd;
@@ -347,10 +365,7 @@ open_fifo_for_read(void)
     if (errno == EINTR) {
       if (terminate_requested)
         return -1;
-      handle_alarm();
-      handle_stats_request();
-      if (daemonize_requested)
-        become_daemon();
+      handle_signal_actions();
       continue;
     }
 
@@ -364,6 +379,13 @@ read_fifo_retry(int fd, char *buf, size_t size)
   ssize_t nread;
 
   while (1) {
+    if (terminate_now)
+      return -2;
+
+    handle_signal_actions();
+    if (terminate_now)
+      return -2;
+
     nread = read(fd, buf, size);
     if (nread >= 0)
       return nread;
@@ -371,10 +393,9 @@ read_fifo_retry(int fd, char *buf, size_t size)
     if (errno == EINTR) {
       if (terminate_now)
         return -2;
-      handle_alarm();
-      handle_stats_request();
-      if (daemonize_requested)
-        become_daemon();
+      handle_signal_actions();
+      if (terminate_now)
+        return -2;
       continue;
     }
 
@@ -412,10 +433,7 @@ main(int argc, char *argv[])
     int saw_data = 0;
     int last_char = '\n';
 
-    handle_alarm();
-    handle_stats_request();
-    if (daemonize_requested)
-      become_daemon();
+    handle_signal_actions();
 
     fd = open_fifo_for_read();
     if (fd < 0)
@@ -425,6 +443,11 @@ main(int argc, char *argv[])
       nread = read_fifo_retry(fd, buf, READ_BUFFER_SIZE);
       if (nread == -2)
         break;
+
+      handle_signal_actions();
+      if (terminate_now)
+        break;
+
       if (nread == 0)
         break;
 
@@ -434,9 +457,14 @@ main(int argc, char *argv[])
       saw_data = 1;
       stats.bytes += (unsigned long long)nread;
       last_char = (unsigned char)buf[nread - 1];
+
+      handle_signal_actions();
+      if (terminate_now)
+        break;
     }
 
     close(fd);
+    handle_signal_actions();
 
     if (saw_data) {
       if (last_char != '\n')

@@ -20,3 +20,7 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+#define SYS_ps_listinfo  22
+#define SYS_mutex         23
+#define SYS_mutex_lock    24
+#define SYS_mutex_unlock  25

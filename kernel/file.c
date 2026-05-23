@@ -59,19 +59,36 @@ filedup(struct file *f)
 void
 fileclose(struct file *f)
 {
-  struct file ff;
+  struct file ff = {0};
+  int islast;
+  int ismutex;
+  struct sleeplock *lk;
 
   acquire(&ftable.lock);
   if(f->ref < 1)
     panic("fileclose");
-  if(--f->ref > 0){
-    release(&ftable.lock);
-    return;
+
+  ismutex = (f->type == FD_MUTEX);
+  lk = f->mutex;
+
+  f->ref--;
+  islast = (f->ref == 0);
+
+  if(islast){
+    ff = *f;
+    f->ref = 0;
+    f->type = FD_NONE;
+    f->pipe = 0;
+    f->ip = 0;
+    f->mutex = 0;
   }
-  ff = *f;
-  f->ref = 0;
-  f->type = FD_NONE;
   release(&ftable.lock);
+
+  if(ismutex && lk && holdingsleep(lk))
+    releasesleep(lk);
+
+  if(!islast)
+    return;
 
   if(ff.type == FD_PIPE){
     pipeclose(ff.pipe, ff.writable);
@@ -79,6 +96,8 @@ fileclose(struct file *f)
     begin_op();
     iput(ff.ip);
     end_op();
+  } else if(ff.type == FD_MUTEX){
+    mutexclose(ff.mutex);
   }
 }
 
